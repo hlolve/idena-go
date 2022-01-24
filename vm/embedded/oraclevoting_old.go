@@ -83,7 +83,7 @@ func (f *OracleVoting3) Deploy(args ...[]byte) error {
 		votingDuration = value
 	}
 	if value, err := helpers.ExtractUInt64(3, args...); err == nil {
-		publicVotingDuration = uint64(math.MaxInt(100, int(value)))
+		publicVotingDuration = uint64(math.MaxInt(1, int(value)))
 	}
 	if value, err := helpers.ExtractByte(4, args...); err == nil {
 		winnerThreshold = byte(math.MinInt(math.MaxInt(51, int(value)), 100))
