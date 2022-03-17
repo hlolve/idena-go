@@ -938,7 +938,7 @@ func Test_applyOnState(t *testing.T) {
 	appstate.State.SetState(addr1, state.Newbie)
 	appstate.State.AddStake(addr1, big.NewInt(100))
 	appstate.State.AddBalance(addr1, big.NewInt(10))
-	appstate.State.AddNewScore(addr1, common.EncodeScore(5, 6))
+	appstate.State.AddNewScore(addr1, common.EncodeScore(5, 6), true)
 	appstate.State.SetDelegatee(addr1, delegatee)
 
 	identities := applyOnState(config.ConsensusVersions[config.ConsensusV6], appstate, collector.NewStatsCollector(), addr1, cacheValue{
