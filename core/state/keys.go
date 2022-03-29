@@ -26,6 +26,7 @@ var (
 	contractStorePrefix      = []byte{0x5}
 	delegationSwitchKey      = []byte{0x6}
 	delayedOfflinePenaltyKey = []byte{0x7}
+	contractCodePrefix       = []byte{0x8}
 )
 
 var (
@@ -88,6 +89,10 @@ func (s *stateDbKeys) DelayedOfflinePenaltyKey() []byte {
 
 func (s *stateDbKeys) ContractStoreKey(address common.Address, key []byte) []byte {
 	return append(append(contractStorePrefix, address[:]...), key...)
+}
+
+func (s *stateDbKeys) ContractCodeKey(codeHash common.Hash) []byte {
+	return append(contractCodePrefix, codeHash[:]...)
 }
 
 type identityStateDbPrefix struct {

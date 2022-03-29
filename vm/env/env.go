@@ -359,7 +359,7 @@ func (e *EnvImp) Reset() {
 }
 
 type CallContext interface {
-	Sender() common.Address
+	Caller() common.Address
 	ContractAddr() common.Address
 	Epoch() uint16
 	Nonce() uint32
@@ -392,7 +392,7 @@ func (c *CallContextImpl) ContractAddr() common.Address {
 	return *c.tx.To
 }
 
-func (c *CallContextImpl) Sender() common.Address {
+func (c *CallContextImpl) Caller() common.Address {
 	addr, _ := types.Sender(c.tx)
 	return addr
 }
@@ -426,13 +426,13 @@ func (d *DeployContextImpl) Nonce() uint32 {
 	return d.tx.AccountNonce
 }
 
-func (d *DeployContextImpl) Sender() common.Address {
+func (d *DeployContextImpl) Caller() common.Address {
 	addr, _ := types.Sender(d.tx)
 	return addr
 }
 
 func (d *DeployContextImpl) ContractAddr() common.Address {
-	hash := crypto.Hash(append(append(d.Sender().Bytes(), common.ToBytes(d.tx.Epoch)...), common.ToBytes(d.tx.AccountNonce)...))
+	hash := crypto.Hash(append(append(d.Caller().Bytes(), common.ToBytes(d.tx.Epoch)...), common.ToBytes(d.tx.AccountNonce)...))
 	var result common.Address
 	result.SetBytes(hash[:])
 	return result
@@ -447,7 +447,7 @@ func (r *ReadContextImpl) CodeHash() common.Hash {
 	return r.Hash
 }
 
-func (r *ReadContextImpl) Sender() common.Address {
+func (r *ReadContextImpl) Caller() common.Address {
 	panic("implement me")
 }
 

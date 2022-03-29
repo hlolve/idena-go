@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/idena-network/idena-go/blockchain/types"
 	"github.com/idena-network/idena-go/core/state/snapshot"
+	"github.com/idena-network/idena-go/crypto"
 	"github.com/idena-network/idena-go/database"
 	"github.com/idena-network/idena-go/log"
 	models "github.com/idena-network/idena-go/protobuf"
@@ -65,6 +66,7 @@ type StateDB struct {
 	stateIdentitiesDirty map[common.Address]struct{}
 
 	contractStoreCache map[string]*contractStoreValue
+	contractCodeCache  map[common.Hash][]byte
 
 	stateGlobal            *stateGlobal
 	stateGlobalDirty       bool
@@ -96,6 +98,7 @@ func NewLazy(db dbm.DB) (*StateDB, error) {
 		stateAccountsDirty: make(map[common.Address]struct{}), stateIdentities: make(map[common.Address]*stateIdentity),
 		stateIdentitiesDirty: make(map[common.Address]struct{}),
 		contractStoreCache:   make(map[string]*contractStoreValue),
+		contractCodeCache:    map[common.Hash][]byte{},
 		log:                  log.New(),
 	}, nil
 }
@@ -115,6 +118,7 @@ func (s *StateDB) ForCheckWithOverwrite(height uint64) (*StateDB, error) {
 		stateIdentities:      make(map[common.Address]*stateIdentity),
 		stateIdentitiesDirty: make(map[common.Address]struct{}),
 		contractStoreCache:   make(map[string]*contractStoreValue),
+		contractCodeCache:    map[common.Hash][]byte{},
 		log:                  log.New(),
 	}, nil
 }
@@ -133,6 +137,7 @@ func (s *StateDB) ForCheck(height uint64) (*StateDB, error) {
 		stateIdentities:      make(map[common.Address]*stateIdentity),
 		stateIdentitiesDirty: make(map[common.Address]struct{}),
 		contractStoreCache:   make(map[string]*contractStoreValue),
+		contractCodeCache:    map[common.Hash][]byte{},
 		log:                  log.New(),
 	}, nil
 }
@@ -150,6 +155,7 @@ func (s *StateDB) Readonly(height int64) (*StateDB, error) {
 		stateIdentities:      make(map[common.Address]*stateIdentity),
 		stateIdentitiesDirty: make(map[common.Address]struct{}),
 		contractStoreCache:   make(map[string]*contractStoreValue),
+		contractCodeCache:    map[common.Hash][]byte{},
 		log:                  log.New(),
 	}, nil
 }
@@ -167,6 +173,7 @@ func (s *StateDB) Clear() {
 	s.stateIdentities = make(map[common.Address]*stateIdentity)
 	s.stateIdentitiesDirty = make(map[common.Address]struct{})
 	s.contractStoreCache = make(map[string]*contractStoreValue)
+	s.contractCodeCache = map[common.Hash][]byte{}
 	s.stateGlobal = nil
 	s.stateGlobalDirty = false
 	s.stateStatusSwitch = nil
@@ -1074,6 +1081,22 @@ func (s *StateDB) Precommit(deleteEmptyObjects bool) []*StateTreeDiff {
 	}
 	s.contractStoreCache = make(map[string]*contractStoreValue)
 
+	var hashes []common.Hash
+	for h := range s.contractCodeCache {
+		hashes = append(hashes, h)
+	}
+	sort.SliceStable(hashes, func(i, j int) bool {
+		return bytes.Compare(hashes[i].Bytes(), hashes[j].Bytes()) > 0
+	})
+
+	for _, h := range hashes {
+		code := s.contractCodeCache[h]
+		key := StateDbKeys.ContractCodeKey(h)
+		s.tree.Set(key, code)
+		diffs = append(diffs, &StateTreeDiff{Key: key, Value: code})
+	}
+	s.contractCodeCache = map[common.Hash][]byte{}
+
 	s.lock.Unlock()
 
 	if s.stateGlobalDirty {
@@ -1459,6 +1482,22 @@ func (s *StateDB) RemoveContractValue(addr common.Address, key []byte) {
 	}
 }
 
+func (s *StateDB) GetContractCode(addr common.Address) []byte {
+	hash := s.GetCodeHash(addr)
+	if hash == nil {
+		return nil
+	}
+
+	if code, ok := s.contractCodeCache[*hash]; ok {
+		return code
+	}
+
+	codeKey := StateDbKeys.ContractCodeKey(*hash)
+
+	_, code := s.tree.Get(codeKey)
+	return code
+}
+
 func (s *StateDB) IterateContractStore(addr common.Address, minKey []byte, maxKey []byte, f func(key []byte, value []byte) bool) {
 
 	iteratedKeys := make(map[string]struct{})
@@ -1503,6 +1542,14 @@ func (s *StateDB) DeployContract(addr common.Address, codeHash common.Hash, stak
 	contract := s.GetOrNewAccountObject(addr)
 	contract.SetCodeHash(codeHash)
 	contract.SetContractStake(stake)
+}
+
+func (s *StateDB) DeployWasmContract(addr common.Address, code []byte, stake *big.Int) {
+	contract := s.GetOrNewAccountObject(addr)
+	codeHash := crypto.Hash(code)
+	contract.SetCodeHash(codeHash)
+	contract.SetContractStake(stake)
+	s.contractCodeCache[codeHash] = code
 }
 
 func (s *StateDB) GetCodeHash(addr common.Address) *common.Hash {

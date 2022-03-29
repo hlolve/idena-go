@@ -38,6 +38,7 @@ type DeployArgs struct {
 	Amount   decimal.Decimal `json:"amount"`
 	Args     DynamicArgs     `json:"args"`
 	MaxFee   decimal.Decimal `json:"maxFee"`
+	Code     hexutil.Bytes   `json:"code"`
 }
 
 type CallArgs struct {
@@ -197,7 +198,7 @@ func (api *ContractApi) buildDeployContractTx(args DeployArgs) (*types.Transacti
 	if err != nil {
 		return nil, err
 	}
-	payload, _ := attachments.CreateDeployContractAttachment(codeHash, convertedArgs...).ToBytes()
+	payload, _ := attachments.CreateDeployContractAttachment(codeHash, args.Code, convertedArgs...).ToBytes()
 	return api.baseApi.getSignedTx(from, nil, types.DeployContractTx, args.Amount,
 		args.MaxFee, decimal.Zero,
 		0, 0,

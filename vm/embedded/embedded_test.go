@@ -146,7 +146,7 @@ func (c *contractTester) Deploy(config configurableDeploy) error {
 
 	contractType, deployStake, deployParams := config.Parameters()
 
-	attachment := attachments.CreateDeployContractAttachment(contractType, deployParams...)
+	attachment := attachments.CreateDeployContractAttachment(contractType, nil, deployParams...)
 	payload, err := attachment.ToBytes()
 	if err != nil {
 		return err
